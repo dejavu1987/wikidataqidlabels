@@ -2,7 +2,7 @@
 	"name": "wikidataqidlabels",
 	"displayName": "Wikidata QID Labels",
 	"description": "VS Code extension to show a description of the entity in Wikidata on hover",
-	"version": "1.2.3",
+	"version": "1.3.0",
 	"icon": "images/wikidata_logo.png",
 	"publisher": "blokhinnv",
 	"repository": {
@@ -10,7 +10,8 @@
 		"url": "https://github.com/blokhinnv/wikidataqidlabels"
 	},
 	"engines": {
-		"vscode": "^1.50.0"
+		"vscode": "^1.82.0",
+		"node": ">=18"
 	},
 	"categories": [
 		"Other"
@@ -23,18 +24,26 @@
 		"description"
 	],
 	"activationEvents": [
-		"*"
+		"onStartupFinished"
 	],
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [
 			{
-				"title": "Enable",
+				"title": "Wikidata QID Labels: Enable",
 				"command": "wikidataqidlabels.enableHover"
 			},
 			{
-				"title": "Disable",
+				"title": "Wikidata QID Labels: Disable",
 				"command": "wikidataqidlabels.disableHover"
+			},
+			{
+				"title": "Wikidata QID Labels: Copy QID",
+				"command": "wikidataqidlabels.copyQid"
+			},
+			{
+				"title": "Wikidata QID Labels: Open in Wikidata",
+				"command": "wikidataqidlabels.openInWikidata"
 			}
 		],
 		"configuration": {
@@ -45,32 +54,45 @@
 				},
 				"wikidataqidlabels.wikidataLanguages": {
 					"type": "string",
-					"default": "en|ru"
+					"default": "en|ru",
+					"description": "Pipe-separated Wikidata language codes used to look up labels and descriptions, in priority order."
 				},
 				"wikidataqidlabels.addLinkToEntity": {
 					"type": "boolean",
 					"default": true
+				},
+				"wikidataqidlabels.showAllLanguages": {
+					"type": "boolean",
+					"default": false,
+					"description": "When true, the hover shows the label and description for every configured language that returned a value, instead of only the first match."
+				},
+				"wikidataqidlabels.documentSelector": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"**"
+					],
+					"description": "Glob patterns that limit which files the extension activates on. Defaults to all files."
 				}
 			}
 		}
 	},
 	"scripts": {
 		"lint": "eslint .",
+		"test:unit": "mocha \"test/unit/**/*.test.js\"",
+		"test:e2e": "node ./test/runTest.js",
 		"pretest": "npm run lint",
-		"test": "node ./test/runTest.js"
+		"test": "npm run test:unit && npm run test:e2e"
 	},
 	"devDependencies": {
-		"@types/vscode": "^1.50.0",
-		"@types/glob": "^7.1.3",
-		"@types/mocha": "^8.0.0",
-		"@types/node": "^12.11.7",
-		"eslint": "^7.9.0",
-		"glob": "^7.1.6",
-		"mocha": "^8.1.3",
-		"typescript": "^4.0.2",
-		"vscode-test": "^1.4.0"
-	},
-	"dependencies": {
-		"node-fetch": "^2.6.1"
+		"@types/mocha": "^10.0.6",
+		"@types/node": "^18.19.0",
+		"@types/vscode": "^1.82.0",
+		"@vscode/test-electron": "^2.4.0",
+		"eslint": "^8.57.0",
+		"glob": "^10.3.10",
+		"mocha": "^10.4.0"
 	}
 }
