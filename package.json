@@ -66,6 +66,11 @@
 					"default": false,
 					"description": "When true, the hover shows the label and description for every configured language that returned a value, instead of only the first match."
 				},
+				"wikidataqidlabels.showInlineLabels": {
+					"type": "boolean",
+					"default": true,
+					"description": "Render the entity label inline as a faint badge next to each QID in the editor."
+				},
 				"wikidataqidlabels.documentSelector": {
 					"type": "array",
 					"items": {

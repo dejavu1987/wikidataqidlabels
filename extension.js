@@ -24,6 +24,7 @@ let disposables = [];
 // Map<cacheKey, { promise: Promise<Entity|null>, value?: Entity|null, expiresAt?: number }>
 const cache = new Map();
 let persistTimer = null;
+let badgeDecorationType = null;
 
 function activate(context) {
 	extensionContext = context;
@@ -62,16 +63,30 @@ function activate(context) {
 			disposeAll();
 			setupProviders();
 			prefetchVisible();
+			refreshAllDecorations();
 		}),
-		vscode.window.onDidChangeVisibleTextEditors(() => prefetchVisible()),
+		vscode.window.onDidChangeVisibleTextEditors(() => {
+			prefetchVisible();
+			refreshAllDecorations();
+		}),
+		vscode.window.onDidChangeActiveTextEditor((editor) => updateDecorations(editor)),
 		vscode.workspace.onDidOpenTextDocument((doc) => prefetchDocument(doc)),
+		vscode.workspace.onDidChangeTextDocument((e) => {
+			refreshDecorationsForDocument(e.document);
+			prefetchDocument(e.document);
+		}),
 	);
+	refreshAllDecorations();
 }
 
 function deactivate() {
 	disposeAll();
 	flushPersist();
 	cache.clear();
+	if (badgeDecorationType) {
+		badgeDecorationType.dispose();
+		badgeDecorationType = null;
+	}
 }
 
 module.exports = { activate, deactivate };
@@ -144,6 +159,69 @@ function disposeAll() {
 		d.dispose();
 	}
 	disposables = [];
+}
+
+function ensureBadgeDecorationType() {
+	if (badgeDecorationType) {
+		return badgeDecorationType;
+	}
+	badgeDecorationType = vscode.window.createTextEditorDecorationType({
+		after: {
+			margin: '0 0 0 0.5em',
+			color: new vscode.ThemeColor('badge.foreground'),
+			backgroundColor: new vscode.ThemeColor('badge.background'),
+			textDecoration: 'none; border-radius: 4px; padding: 0 6px; font-size: 0.85em; vertical-align: middle;',
+		},
+		rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+	});
+	return badgeDecorationType;
+}
+
+function updateDecorations(editor) {
+	if (!editor) {
+		return;
+	}
+	const type = ensureBadgeDecorationType();
+	const cfg = vscode.workspace.getConfiguration('wikidataqidlabels');
+	if (!cfg.get('enableExtension', true) || !cfg.get('showInlineLabels', true)) {
+		editor.setDecorations(type, []);
+		return;
+	}
+	const langs = configuredLanguages();
+	const decos = [];
+	for (const { qid, range } of findQidRanges(editor.document, undefined)) {
+		const entry = cache.get(cacheKeyOf(qid, langs));
+		const value = entry && entry.value;
+		if (!value || !value.label) {
+			continue;
+		}
+		decos.push({
+			range,
+			renderOptions: {
+				after: {
+					contentText: value.label,
+				},
+			},
+		});
+	}
+	editor.setDecorations(type, decos);
+}
+
+function refreshAllDecorations() {
+	for (const editor of vscode.window.visibleTextEditors) {
+		updateDecorations(editor);
+	}
+}
+
+function refreshDecorationsForDocument(document) {
+	if (!document) {
+		return;
+	}
+	for (const editor of vscode.window.visibleTextEditors) {
+		if (editor.document === document) {
+			updateDecorations(editor);
+		}
+	}
 }
 
 function findQidRanges(document, token) {
@@ -329,6 +407,7 @@ async function prefetchDocument(document) {
 				delete entry._resolve;
 			});
 			schedulePersist();
+			refreshDecorationsForDocument(document);
 		} catch (err) {
 			console.log(`wikidataqidlabels: prefetch ${err}`);
 			batch.forEach((qid, idx) => {
